@@ -97,3 +97,28 @@ def test_accept_expired_rejected(client, db_session):
     guest = _auth(client, "guest5@b.com")
     r = client.post("/invitations/accept", json={"token": token}, headers=guest)
     assert r.status_code == 400
+
+
+from app.models.household import Membership
+
+def test_accept_when_already_member_is_idempotent(client, db_session):
+    # Covers the `existing is None` guard: accepting when already a member must not duplicate the membership.
+    hid, token = _make_invite(client, "idem_owner@b.com", "idem_guest@b.com")
+    guest = _auth(client, "idem_guest@b.com")
+    guest_uid = client.get("/auth/me", headers=guest).json()["id"]
+    # Pre-create the membership directly, then accept.
+    db_session.add(Membership(household_id=hid, user_id=guest_uid, role="member"))
+    db_session.commit()
+    r = client.post("/invitations/accept", json={"token": token}, headers=guest)
+    assert r.status_code == 200
+    members = client.get(f"/households/{hid}/members", headers=guest).json()
+    assert sum(1 for m in members if m["user_id"] == guest_uid) == 1  # no duplicate
+
+def test_revoke_wrong_household_returns_404(client):
+    owner = _auth(client, "xh_owner1@b.com")
+    hid1 = client.post("/households", json={"name": "H1"}, headers=owner).json()["id"]
+    hid2 = client.post("/households", json={"name": "H2"}, headers=owner).json()["id"]
+    iid = client.post(f"/households/{hid1}/invitations", json={"email": "xg@b.com"}, headers=owner).json()["id"]
+    # Try to revoke H1's invite via H2's path -> 404 (invite exists but wrong household)
+    r = client.delete(f"/households/{hid2}/invitations/{iid}", headers=owner)
+    assert r.status_code == 404

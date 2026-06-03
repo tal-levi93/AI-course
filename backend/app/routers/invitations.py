@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -10,7 +9,7 @@ from app.deps import get_current_user, require_owner, require_member
 from app.models.household import Membership
 from app.models.invitation import Invitation
 from app.models.user import User
-from app.schemas.invitation import InviteCreate, InviteCreatedOut, InviteOut, AcceptRequest
+from app.schemas.invitation import InviteCreate, InviteCreatedOut, InviteOut, AcceptRequest, AcceptResult
 from app.security import generate_invite_token, hash_token
 
 router = APIRouter(tags=["invitations"])
@@ -45,11 +44,6 @@ def revoke_invite(household_id: int, invite_id: int, db: Session = Depends(get_d
     db.commit()
 
 
-class AcceptResult(BaseModel):
-    household_id: int
-    role: str = "member"
-
-
 @router.post("/invitations/accept", response_model=AcceptResult)
 def accept_invite(payload: AcceptRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     inv = db.query(Invitation).filter(Invitation.token_hash == hash_token(payload.token)).first()
@@ -58,6 +52,7 @@ def accept_invite(payload: AcceptRequest, db: Session = Depends(get_db), user: U
     if inv.status != "pending":
         raise HTTPException(status_code=400, detail="Invitation is not pending")
     expires = inv.expires_at
+    # SQLite stores naive datetimes (drops tzinfo); values were written as UTC, so re-attach it.
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
     if expires < datetime.now(timezone.utc):

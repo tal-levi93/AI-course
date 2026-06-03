@@ -24,3 +24,8 @@ class InviteOut(BaseModel):
 
 class AcceptRequest(BaseModel):
     token: str
+
+
+class AcceptResult(BaseModel):
+    household_id: int
+    role: str = "member"
