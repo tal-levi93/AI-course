@@ -10,8 +10,11 @@ export default function AcceptInvite() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
 
-  const [status, setStatus] = useState('working') // working | needauth | error
+  // working | needauth | error | manual
+  const [status, setStatus] = useState('working')
   const [error, setError] = useState('')
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!ready) return
@@ -19,6 +22,12 @@ export default function AcceptInvite() {
 
     if (!getToken()) {
       setStatus('needauth')
+      return
+    }
+
+    // No token in the URL: let a logged-in user paste an invite code.
+    if (!token) {
+      setStatus('manual')
       return
     }
 
@@ -42,6 +51,24 @@ export default function AcceptInvite() {
     }
   }, [ready, token, navigate])
 
+  async function acceptCode(e) {
+    e.preventDefault()
+    if (!code.trim()) return
+    setError('')
+    setBusy(true)
+    try {
+      const res = await api('/invitations/accept', {
+        method: 'POST',
+        body: { token: code.trim() },
+      })
+      navigate(`/households/${res.household_id}`)
+    } catch (err) {
+      setError(err.message || 'Could not accept invitation')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       <TopBar />
@@ -54,6 +81,30 @@ export default function AcceptInvite() {
         {status === 'working' && (
           <div className="panel">
             <p className="muted mono">Accepting your invitation…</p>
+          </div>
+        )}
+
+        {status === 'manual' && (
+          <div className="panel stack">
+            <p className="muted">
+              Have an invite code? Paste it below to join the household. You
+              must be signed in with the <b>invited email address</b>.
+            </p>
+            <hr className="divider" />
+            <form className="row wrap" onSubmit={acceptCode}>
+              <input
+                className="grow mono"
+                type="text"
+                aria-label="invite code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Paste invite code"
+              />
+              <button className="btn-primary" type="submit" disabled={busy}>
+                {busy ? 'Accepting…' : 'Accept invite'}
+              </button>
+            </form>
+            {error && <div role="alert">{error}</div>}
           </div>
         )}
 
