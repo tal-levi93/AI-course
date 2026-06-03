@@ -2,5 +2,5 @@
   <path d="M16 18 C10 16 10 9 16 8 C22 7 27 9 26 4"></path>
   <path d="M16 18 L19 30 H35 L40 18 Z"></path>
   <circle cx="24" cy="36" r="2.8" fill="#184878"></circle>
-  <circle cx="33" cy="36" r="2.8" fill="#184878"></circle>
+  <circle cx="33" cy="36" r="2.8" fill="#D8E034" stroke="none"></circle>
 </svg>
