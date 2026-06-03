@@ -299,7 +299,8 @@ label.field {
 input[type='text'],
 input[type='email'],
 input[type='password'],
-input:not([type]) {
+input:not([type]),
+select {
   width: 100%;
   font-family: var(--body);
   font-size: 1rem;
@@ -314,7 +315,8 @@ input::placeholder {
   color: var(--muted);
   opacity: 0.75;
 }
-input:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: var(--green);
   box-shadow: 0 0 0 3px rgba(31, 77, 51, 0.16);
@@ -363,6 +365,22 @@ input:focus {
 .qty-input {
   flex: 0 0 9rem;
   width: 9rem;
+}
+.cat-input {
+  flex: 0 0 11rem;
+  width: 11rem;
+}
+.category-group + .category-group {
+  margin-top: 18px;
+}
+.category-heading {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 6px;
 }
 
 /* ---------- List rows / links ---------- */

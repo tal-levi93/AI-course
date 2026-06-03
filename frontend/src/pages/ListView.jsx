@@ -4,6 +4,8 @@ import { api } from '../api/client'
 import TopBar from '../components/TopBar.jsx'
 import ItemRow from '../components/ItemRow.jsx'
 import { useHouseholdSocket } from '../hooks/useHouseholdSocket.js'
+import { CATEGORIES, DEFAULT_CATEGORY } from '../constants/categories.js'
+import { groupByCategory } from '../lib/groupByCategory.js'
 
 export default function ListView() {
   const { listId } = useParams()
@@ -14,6 +16,7 @@ export default function ListView() {
   const [items, setItems] = useState([])
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
+  const [category, setCategory] = useState(DEFAULT_CATEGORY)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -56,10 +59,11 @@ export default function ListView() {
     try {
       await api(`/lists/${listId}/items`, {
         method: 'POST',
-        body: { name: name.trim(), quantity: quantity.trim() || undefined },
+        body: { name: name.trim(), quantity: quantity.trim() || undefined, category },
       })
       setName('')
       setQuantity('')
+      setCategory(DEFAULT_CATEGORY)
       await load()
     } catch (err) {
       setError(err.message)
@@ -134,26 +138,43 @@ export default function ListView() {
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="2 · 500g · 1 dozen"
             />
+            <select
+              className="cat-input"
+              aria-label="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
             <button className="btn-accent" type="submit" disabled={busy}>
               {busy ? 'Adding…' : 'Add'}
             </button>
           </form>
         </section>
 
-        <section className="panel">
+        <section className="panel stack">
           {items.length === 0 ? (
             <p className="muted">The list is empty. Add the first thing.</p>
           ) : (
-            <div>
-              {items.map((item) => (
-                <ItemRow
-                  key={item.id}
-                  item={item}
-                  onToggle={toggle}
-                  onDelete={remove}
-                />
-              ))}
-            </div>
+            groupByCategory(items).map((group) => (
+              <div key={group.category} className="category-group">
+                <h3 className="category-heading">{group.category}</h3>
+                <div>
+                  {group.items.map((item) => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      onToggle={toggle}
+                      onDelete={remove}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))
           )}
         </section>
       </main>
