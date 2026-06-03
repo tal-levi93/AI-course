@@ -32,3 +32,22 @@ def test_list_my_households(client):
     client.post("/households", json={"name": "B"}, headers=h)
     r = client.get("/households", headers=h)
     assert r.status_code == 200 and len(r.json()) == 2
+
+def test_rename_requires_owner(client):
+    owner = _auth(client, "ro@b.com")
+    hid = client.post("/households", json={"name": "Home"}, headers=owner).json()["id"]
+    r = client.patch(f"/households/{hid}", json={"name": "Casa"}, headers=owner)
+    assert r.status_code == 200 and r.json()["name"] == "Casa"
+
+def test_delete_household(client):
+    owner = _auth(client, "rd@b.com")
+    hid = client.post("/households", json={"name": "Home"}, headers=owner).json()["id"]
+    assert client.delete(f"/households/{hid}", headers=owner).status_code == 204
+    assert client.get("/households", headers=owner).json() == []
+
+def test_owner_cannot_be_removed(client):
+    owner = _auth(client, "rx@b.com")
+    hid = client.post("/households", json={"name": "Home"}, headers=owner).json()["id"]
+    uid = client.get("/auth/me", headers=owner).json()["id"]
+    r = client.delete(f"/households/{hid}/members/{uid}", headers=owner)
+    assert r.status_code == 400

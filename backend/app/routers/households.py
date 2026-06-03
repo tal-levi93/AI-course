@@ -39,3 +39,39 @@ def list_members(household_id: int, db: Session = Depends(get_db), _: Membership
         .all()
     )
     return [MemberOut(user_id=r.id, email=r.email, display_name=r.display_name, role=r.role) for r in rows]
+
+
+@router.get("/households/{household_id}", response_model=HouseholdOut)
+def get_household(household_id: int, db: Session = Depends(get_db), _: Membership = Depends(require_member)):
+    h = db.get(Household, household_id)
+    if h is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return h
+
+
+@router.patch("/households/{household_id}", response_model=HouseholdOut)
+def rename_household(household_id: int, payload: HouseholdUpdate, db: Session = Depends(get_db), _: Membership = Depends(require_owner)):
+    h = db.get(Household, household_id)
+    h.name = payload.name
+    db.commit(); db.refresh(h)
+    return h
+
+
+@router.delete("/households/{household_id}", status_code=204)
+def delete_household(household_id: int, db: Session = Depends(get_db), _: Membership = Depends(require_owner)):
+    db.query(Membership).filter(Membership.household_id == household_id).delete()
+    h = db.get(Household, household_id)
+    if h:
+        db.delete(h)
+    db.commit()
+
+
+@router.delete("/households/{household_id}/members/{user_id}", status_code=204)
+def remove_member(household_id: int, user_id: int, db: Session = Depends(get_db), _: Membership = Depends(require_owner)):
+    h = db.get(Household, household_id)
+    if h and h.owner_id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot remove the owner")
+    m = db.query(Membership).filter(Membership.household_id == household_id, Membership.user_id == user_id).first()
+    if m is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+    db.delete(m); db.commit()
