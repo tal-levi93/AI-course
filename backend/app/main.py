@@ -5,6 +5,7 @@ from app.config import settings
 from app.routers import auth as auth_router
 from app.routers import households as households_router
 from app.routers import invitations as invitations_router
+from app.routers import lists as lists_router
 
 app = FastAPI(title="Household Shopping")
 
@@ -19,6 +20,7 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(households_router.router)
 app.include_router(invitations_router.router)
+app.include_router(lists_router.router)
 
 
 @app.get("/health")
