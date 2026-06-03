@@ -37,3 +37,16 @@ def test_register_duplicate_email(client):
     client.post("/auth/register", json=payload)
     r = client.post("/auth/register", json=payload)
     assert r.status_code == 409
+
+
+def test_login_success(client):
+    client.post("/auth/register", json={"email": "l@b.com", "password": "secret123", "display_name": "L"})
+    r = client.post("/auth/login", json={"email": "l@b.com", "password": "secret123"})
+    assert r.status_code == 200
+    assert r.json()["access_token"]
+
+
+def test_login_wrong_password(client):
+    client.post("/auth/register", json={"email": "l2@b.com", "password": "secret123", "display_name": "L"})
+    r = client.post("/auth/login", json={"email": "l2@b.com", "password": "nope"})
+    assert r.status_code == 401
