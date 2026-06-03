@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -42,3 +43,34 @@ def revoke_invite(household_id: int, invite_id: int, db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Invitation not found")
     inv.status = "revoked"
     db.commit()
+
+
+class AcceptResult(BaseModel):
+    household_id: int
+    role: str = "member"
+
+
+@router.post("/invitations/accept", response_model=AcceptResult)
+def accept_invite(payload: AcceptRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    inv = db.query(Invitation).filter(Invitation.token_hash == hash_token(payload.token)).first()
+    if inv is None:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if inv.status != "pending":
+        raise HTTPException(status_code=400, detail="Invitation is not pending")
+    expires = inv.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc):
+        inv.status = "expired"; db.commit()
+        raise HTTPException(status_code=400, detail="Invitation expired")
+    if user.email != inv.email:
+        raise HTTPException(status_code=403, detail="This invitation is for a different email")
+    existing = db.query(Membership).filter(
+        Membership.household_id == inv.household_id, Membership.user_id == user.id
+    ).first()
+    if existing is None:
+        db.add(Membership(household_id=inv.household_id, user_id=user.id, role="member"))
+    inv.status = "accepted"
+    inv.accepted_at = datetime.now(timezone.utc)
+    db.commit()
+    return AcceptResult(household_id=inv.household_id)
