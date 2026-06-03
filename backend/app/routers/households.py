@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user, require_member, require_owner
 from app.models.household import Household, Membership
+from app.models.invitation import Invitation
+from app.models.shopping import ShoppingList, ListItem
 from app.models.user import User
 from app.schemas.household import HouseholdCreate, HouseholdUpdate, HouseholdOut, MemberOut
 
@@ -61,7 +63,12 @@ def rename_household(household_id: int, payload: HouseholdUpdate, db: Session = 
 
 @router.delete("/households/{household_id}", status_code=204)
 def delete_household(household_id: int, db: Session = Depends(get_db), _: Membership = Depends(require_owner)):
-    db.query(Membership).filter(Membership.household_id == household_id).delete()
+    list_ids = [row[0] for row in db.query(ShoppingList.id).filter(ShoppingList.household_id == household_id).all()]
+    if list_ids:
+        db.query(ListItem).filter(ListItem.list_id.in_(list_ids)).delete(synchronize_session=False)
+    db.query(ShoppingList).filter(ShoppingList.household_id == household_id).delete(synchronize_session=False)
+    db.query(Invitation).filter(Invitation.household_id == household_id).delete(synchronize_session=False)
+    db.query(Membership).filter(Membership.household_id == household_id).delete(synchronize_session=False)
     h = db.get(Household, household_id)
     if h:
         db.delete(h)

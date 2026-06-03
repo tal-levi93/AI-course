@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import require_member, get_current_user
+from app.deps import require_member, get_current_user, get_membership
 from app.models.household import Membership
-from app.models.shopping import ShoppingList
+from app.models.shopping import ShoppingList, ListItem
 from app.models.user import User
 from app.schemas.shopping import ListCreate, ListOut
 
@@ -29,7 +29,7 @@ def delete_list(list_id: int, db: Session = Depends(get_db), user: User = Depend
     sl = db.get(ShoppingList, list_id)
     if sl is None:
         raise HTTPException(status_code=404, detail="List not found")
-    m = db.query(Membership).filter(Membership.household_id == sl.household_id, Membership.user_id == user.id).first()
-    if m is None:
+    if get_membership(sl.household_id, db, user) is None:
         raise HTTPException(status_code=403, detail="Not a member")
+    db.query(ListItem).filter(ListItem.list_id == list_id).delete()
     db.delete(sl); db.commit()
