@@ -32,3 +32,21 @@ def test_non_member_cannot_create_list(client):
     stranger = _auth(client, "ls@b.com")
     r = client.post(f"/households/{hid}/lists", json={"name": "X"}, headers=stranger)
     assert r.status_code == 403
+
+
+def _list(client, headers):
+    hid = client.post("/households", json={"name": "Home"}, headers=headers).json()["id"]
+    lid = client.post(f"/households/{hid}/lists", json={"name": "G"}, headers=headers).json()["id"]
+    return hid, lid
+
+
+def test_add_check_delete_item(client):
+    h = _auth(client, "it@b.com")
+    _, lid = _list(client, h)
+    iid = client.post(f"/lists/{lid}/items", json={"name": "Milk", "quantity": "2"}, headers=h).json()["id"]
+    items = client.get(f"/lists/{lid}/items", headers=h).json()
+    assert len(items) == 1 and items[0]["name"] == "Milk"
+    upd = client.patch(f"/items/{iid}", json={"is_checked": True}, headers=h).json()
+    assert upd["is_checked"] is True and upd["checked_by"] is not None
+    assert client.delete(f"/items/{iid}", headers=h).status_code == 204
+    assert client.get(f"/lists/{lid}/items", headers=h).json() == []
