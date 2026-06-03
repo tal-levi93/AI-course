@@ -31,3 +31,14 @@ def test_member_cannot_invite(client):
     guest = _auth(client, "stranger@b.com")
     r = client.post(f"/households/{hid}/invitations", json={"email": "x@b.com"}, headers=guest)
     assert r.status_code == 403
+
+
+def test_list_and_revoke_invite(client):
+    owner = _auth(client, "lr@b.com")
+    hid = client.post("/households", json={"name": "Home"}, headers=owner).json()["id"]
+    iid = client.post(f"/households/{hid}/invitations", json={"email": "g@b.com"}, headers=owner).json()["id"]
+    lst = client.get(f"/households/{hid}/invitations", headers=owner).json()
+    assert any(i["id"] == iid and i["status"] == "pending" for i in lst)
+    assert client.delete(f"/households/{hid}/invitations/{iid}", headers=owner).status_code == 204
+    lst2 = client.get(f"/households/{hid}/invitations", headers=owner).json()
+    assert all(i["status"] != "pending" for i in lst2 if i["id"] == iid)

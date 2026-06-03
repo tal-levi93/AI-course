@@ -28,3 +28,17 @@ def create_invite(household_id: int, payload: InviteCreate, db: Session = Depend
     accept_url = f"{settings.frontend_base_url}/accept?token={token}"
     print(f"[DEV EMAIL] Invite for {payload.email}: {accept_url}")  # dev console delivery
     return InviteCreatedOut(id=inv.id, email=inv.email, token=token, accept_url=accept_url, expires_at=inv.expires_at)
+
+
+@router.get("/households/{household_id}/invitations", response_model=list[InviteOut])
+def list_invites(household_id: int, db: Session = Depends(get_db), _: Membership = Depends(require_member)):
+    return db.query(Invitation).filter(Invitation.household_id == household_id).all()
+
+
+@router.delete("/households/{household_id}/invitations/{invite_id}", status_code=204)
+def revoke_invite(household_id: int, invite_id: int, db: Session = Depends(get_db), _: Membership = Depends(require_owner)):
+    inv = db.get(Invitation, invite_id)
+    if inv is None or inv.household_id != household_id:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    inv.status = "revoked"
+    db.commit()
