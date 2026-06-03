@@ -13,7 +13,10 @@ class ConnectionManager:
 
     async def broadcast(self, household_id: int, message: dict):
         for ws in list(self._rooms.get(household_id, set())):
-            await ws.send_json(message)
+            try:
+                await ws.send_json(message)
+            except Exception:
+                self._rooms[household_id].discard(ws)
 
 
 manager = ConnectionManager()

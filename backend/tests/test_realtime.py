@@ -47,3 +47,18 @@ def test_ws_rejects_invalid_token(client):
     with pytest.raises(WebSocketDisconnect):
         with client.websocket_connect(f"/ws/households/{hid}?token=bogus") as ws:
             ws.receive_json()
+
+
+def test_broadcast_survives_dead_socket():
+    mgr = ConnectionManager()
+
+    class DeadWS:
+        async def send_json(self, data):
+            raise RuntimeError("socket closed")
+
+    good = FakeWS()
+    dead = DeadWS()
+    mgr.add(5, dead); mgr.add(5, good)
+    asyncio.run(mgr.broadcast(5, {"type": "item.added"}))
+    # the good socket still received the message despite the dead one raising
+    assert good.sent == [{"type": "item.added"}]
