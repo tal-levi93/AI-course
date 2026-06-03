@@ -50,3 +50,21 @@ def test_login_wrong_password(client):
     client.post("/auth/register", json={"email": "l2@b.com", "password": "secret123", "display_name": "L"})
     r = client.post("/auth/login", json={"email": "l2@b.com", "password": "nope"})
     assert r.status_code == 401
+
+
+def _auth_headers(client, email="me@b.com"):
+    client.post("/auth/register", json={"email": email, "password": "secret123", "display_name": "Me"})
+    token = client.post("/auth/login", json={"email": email, "password": "secret123"}).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_me_returns_current_user(client):
+    headers = _auth_headers(client)
+    r = client.get("/auth/me", headers=headers)
+    assert r.status_code == 200
+    assert r.json()["email"] == "me@b.com"
+
+
+def test_me_requires_auth(client):
+    r = client.get("/auth/me")
+    assert r.status_code == 401
