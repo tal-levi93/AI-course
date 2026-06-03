@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext.jsx'
 import TopBar from '../components/TopBar.jsx'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [households, setHouseholds] = useState([])
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [code, setCode] = useState('')
+  const [joinError, setJoinError] = useState('')
+  const [joinBusy, setJoinBusy] = useState(false)
 
   async function load() {
     try {
@@ -36,6 +40,25 @@ export default function Dashboard() {
       setError(err.message)
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function joinHousehold(e) {
+    e.preventDefault()
+    if (!code.trim()) return
+    setJoinError('')
+    setJoinBusy(true)
+    try {
+      const res = await api('/invitations/accept', {
+        method: 'POST',
+        body: { token: code.trim() },
+      })
+      setCode('')
+      navigate(`/households/${res.household_id}`)
+    } catch (err) {
+      setJoinError(err.message || 'Could not join household')
+    } finally {
+      setJoinBusy(false)
     }
   }
 
@@ -89,6 +112,29 @@ export default function Dashboard() {
             </button>
           </form>
           {error && <div role="alert">{error}</div>}
+        </section>
+
+        <section className="panel panel-2 stack">
+          <h3>Connect to an online household</h3>
+          <p className="muted">
+            Got an invite code? Paste it to join a household someone shared
+            with you. You must be signed in with the <b>invited email
+            address</b>.
+          </p>
+          <form className="row wrap" onSubmit={joinHousehold}>
+            <input
+              className="grow mono"
+              type="text"
+              aria-label="invite code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Paste invite code"
+            />
+            <button className="btn-primary" type="submit" disabled={joinBusy}>
+              {joinBusy ? 'Joining…' : 'Join household'}
+            </button>
+          </form>
+          {joinError && <div role="alert">{joinError}</div>}
         </section>
       </main>
     </>
