@@ -360,6 +360,10 @@ input:focus {
   border: 1px solid var(--line);
   color: var(--ink);
 }
+.qty-input {
+  flex: 0 0 9rem;
+  width: 9rem;
+}
 
 /* ---------- List rows / links ---------- */
 .tile {

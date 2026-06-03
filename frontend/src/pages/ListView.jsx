@@ -13,6 +13,7 @@ export default function ListView() {
 
   const [items, setItems] = useState([])
   const [name, setName] = useState('')
+  const [quantity, setQuantity] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -55,9 +56,10 @@ export default function ListView() {
     try {
       await api(`/lists/${listId}/items`, {
         method: 'POST',
-        body: { name: name.trim() },
+        body: { name: name.trim(), quantity: quantity.trim() || undefined },
       })
       setName('')
+      setQuantity('')
       await load()
     } catch (err) {
       setError(err.message)
@@ -123,6 +125,14 @@ export default function ListView() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Sourdough, olive oil, lemons…"
+            />
+            <input
+              className="qty-input"
+              type="text"
+              aria-label="quantity"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="2 · 500g · 1 dozen"
             />
             <button className="btn-accent" type="submit" disabled={busy}>
               {busy ? 'Adding…' : 'Add'}
