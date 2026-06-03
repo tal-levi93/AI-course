@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import jwt, JWTError
@@ -28,3 +30,11 @@ def decode_token(token: str) -> str | None:
         return payload.get("sub")
     except JWTError:
         return None
+
+
+def generate_invite_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
