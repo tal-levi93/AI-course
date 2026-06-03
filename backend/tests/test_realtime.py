@@ -21,3 +21,29 @@ def test_broadcast_only_to_household():
     mgr.remove(1, a)
     asyncio.run(mgr.broadcast(1, {"type": "x"}))
     assert len(a.sent) == 1  # no new message after removal
+
+
+def test_ws_receives_item_added(client):
+    client.post("/auth/register", json={"email": "w@b.com", "password": "secret123", "display_name": "W"})
+    token = client.post("/auth/login", json={"email": "w@b.com", "password": "secret123"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    hid = client.post("/households", json={"name": "Home"}, headers=headers).json()["id"]
+    lid = client.post(f"/households/{hid}/lists", json={"name": "G"}, headers=headers).json()["id"]
+    with client.websocket_connect(f"/ws/households/{hid}?token={token}") as ws:
+        client.post(f"/lists/{lid}/items", json={"name": "Eggs"}, headers=headers)
+        msg = ws.receive_json()
+        assert msg["type"] == "item.added" and msg["item"]["name"] == "Eggs"
+
+
+def test_ws_rejects_invalid_token(client):
+    from starlette.websockets import WebSocketDisconnect
+    import pytest
+
+    client.post("/auth/register", json={"email": "w2@b.com", "password": "secret123", "display_name": "W"})
+    token = client.post("/auth/login", json={"email": "w2@b.com", "password": "secret123"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    hid = client.post("/households", json={"name": "Home"}, headers=headers).json()["id"]
+    # connect with a bogus token -> server should close before accepting; receiving raises
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect(f"/ws/households/{hid}?token=bogus") as ws:
+            ws.receive_json()

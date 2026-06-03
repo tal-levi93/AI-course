@@ -7,6 +7,7 @@ from app.models.household import Membership
 from app.models.shopping import ShoppingList, ListItem
 from app.models.user import User
 from app.schemas.shopping import ItemCreate, ItemUpdate, ItemOut
+from app.realtime import manager
 
 router = APIRouter(tags=["items"])
 
@@ -30,10 +31,11 @@ def _item_or_403(item_id: int, db: Session, user: User) -> ListItem:
 
 
 @router.post("/lists/{list_id}/items", response_model=ItemOut, status_code=201)
-def add_item(list_id: int, payload: ItemCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    _list_or_403(list_id, db, user)
+async def add_item(list_id: int, payload: ItemCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    sl = _list_or_403(list_id, db, user)
     it = ListItem(list_id=list_id, added_by=user.id, **payload.model_dump())
     db.add(it); db.commit(); db.refresh(it)
+    await manager.broadcast(sl.household_id, {"type": "item.added", "item": ItemOut.model_validate(it).model_dump()})
     return it
 
 
@@ -44,18 +46,23 @@ def list_items(list_id: int, db: Session = Depends(get_db), user: User = Depends
 
 
 @router.patch("/items/{item_id}", response_model=ItemOut)
-def update_item(item_id: int, payload: ItemUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+async def update_item(item_id: int, payload: ItemUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     it = _item_or_403(item_id, db, user)
+    sl = db.get(ShoppingList, it.list_id)
     data = payload.model_dump(exclude_unset=True)
     if "is_checked" in data:
         it.checked_by = user.id if data["is_checked"] else None
     for k, v in data.items():
         setattr(it, k, v)
     db.commit(); db.refresh(it)
+    await manager.broadcast(sl.household_id, {"type": "item.updated", "item": ItemOut.model_validate(it).model_dump()})
     return it
 
 
 @router.delete("/items/{item_id}", status_code=204)
-def delete_item(item_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+async def delete_item(item_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     it = _item_or_403(item_id, db, user)
+    list_id = it.list_id
+    household_id = db.get(ShoppingList, it.list_id).household_id
     db.delete(it); db.commit()
+    await manager.broadcast(household_id, {"type": "item.deleted", "item_id": item_id, "list_id": list_id})
