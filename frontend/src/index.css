@@ -313,7 +313,8 @@ input:not([type]) {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 input::placeholder {
-  color: #b3aa96;
+  color: var(--muted);
+  opacity: 0.75;
 }
 input:focus {
   outline: none;

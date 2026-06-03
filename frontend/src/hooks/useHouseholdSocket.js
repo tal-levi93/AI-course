@@ -11,8 +11,7 @@ export function useHouseholdSocket(householdId, onEvent) {
   cbRef.current = onEvent
 
   useEffect(() => {
-    if (!householdId && householdId !== 0) return
-    if (Number.isNaN(householdId)) return
+    if (!Number.isInteger(householdId) || householdId <= 0) return
 
     const url = `${WS_BASE}/ws/households/${householdId}?token=${getToken()}`
     const socket = new WebSocket(url)
