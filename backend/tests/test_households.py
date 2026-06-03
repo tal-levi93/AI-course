@@ -51,3 +51,42 @@ def test_owner_cannot_be_removed(client):
     uid = client.get("/auth/me", headers=owner).json()["id"]
     r = client.delete(f"/households/{hid}/members/{uid}", headers=owner)
     assert r.status_code == 400
+
+
+def _add_member(db_session, client, household_id, email):
+    """Register a user and directly insert a 'member' Membership; return their id + auth headers."""
+    headers = _auth(client, email)
+    uid = client.get("/auth/me", headers=headers).json()["id"]
+    db_session.add(Membership(household_id=household_id, user_id=uid, role="member"))
+    db_session.commit()
+    return uid, headers
+
+def test_non_member_forbidden_on_reads_and_mutations(client):
+    owner = _auth(client, "secowner@b.com")
+    hid = client.post("/households", json={"name": "Home"}, headers=owner).json()["id"]
+    stranger = _auth(client, "stranger@b.com")
+    assert client.get(f"/households/{hid}", headers=stranger).status_code == 403
+    assert client.get(f"/households/{hid}/members", headers=stranger).status_code == 403
+    assert client.patch(f"/households/{hid}", json={"name": "X"}, headers=stranger).status_code == 403
+    assert client.delete(f"/households/{hid}", headers=stranger).status_code == 403
+
+def test_member_cannot_mutate_household(client, db_session):
+    owner = _auth(client, "mowner@b.com")
+    hid = client.post("/households", json={"name": "Home"}, headers=owner).json()["id"]
+    _, member = _add_member(db_session, client, hid, "plainmember@b.com")
+    # member CAN read
+    assert client.get(f"/households/{hid}", headers=member).status_code == 200
+    # member CANNOT rename / delete / remove others
+    assert client.patch(f"/households/{hid}", json={"name": "X"}, headers=member).status_code == 403
+    assert client.delete(f"/households/{hid}", headers=member).status_code == 403
+    owner_uid = client.get("/auth/me", headers=owner).json()["id"]
+    assert client.delete(f"/households/{hid}/members/{owner_uid}", headers=member).status_code == 403
+
+def test_owner_can_remove_real_member(client, db_session):
+    owner = _auth(client, "rmowner@b.com")
+    hid = client.post("/households", json={"name": "Home"}, headers=owner).json()["id"]
+    member_uid, _ = _add_member(db_session, client, hid, "removable@b.com")
+    # owner removes the member -> 204
+    assert client.delete(f"/households/{hid}/members/{member_uid}", headers=owner).status_code == 204
+    members = client.get(f"/households/{hid}/members", headers=owner).json()
+    assert all(m["user_id"] != member_uid for m in members)

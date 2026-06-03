@@ -52,6 +52,8 @@ def get_household(household_id: int, db: Session = Depends(get_db), _: Membershi
 @router.patch("/households/{household_id}", response_model=HouseholdOut)
 def rename_household(household_id: int, payload: HouseholdUpdate, db: Session = Depends(get_db), _: Membership = Depends(require_owner)):
     h = db.get(Household, household_id)
+    if h is None:
+        raise HTTPException(status_code=404, detail="Not found")
     h.name = payload.name
     db.commit(); db.refresh(h)
     return h
