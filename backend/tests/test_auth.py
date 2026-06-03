@@ -20,3 +20,20 @@ def test_password_hash_roundtrip():
 def test_jwt_roundtrip():
     token = create_access_token(subject="42")
     assert decode_token(token) == "42"
+
+
+def test_register_creates_user(client):
+    r = client.post("/auth/register", json={
+        "email": "new@b.com", "password": "secret123", "display_name": "New"
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["email"] == "new@b.com"
+    assert "password" not in data and "password_hash" not in data
+
+
+def test_register_duplicate_email(client):
+    payload = {"email": "dup@b.com", "password": "secret123", "display_name": "D"}
+    client.post("/auth/register", json=payload)
+    r = client.post("/auth/register", json=payload)
+    assert r.status_code == 409
