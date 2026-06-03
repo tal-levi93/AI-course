@@ -11,3 +11,24 @@ def test_membership_unique(db_session):
     db_session.add(m); db_session.commit()
     assert m.id is not None
     assert m.role == "owner"
+
+
+def _auth(client, email):
+    client.post("/auth/register", json={"email": email, "password": "secret123", "display_name": email[:1]})
+    t = client.post("/auth/login", json={"email": email, "password": "secret123"}).json()["access_token"]
+    return {"Authorization": f"Bearer {t}"}
+
+def test_create_household_makes_owner(client):
+    h = _auth(client, "owner@b.com")
+    r = client.post("/households", json={"name": "Home"}, headers=h)
+    assert r.status_code == 201
+    hid = r.json()["id"]
+    members = client.get(f"/households/{hid}/members", headers=h).json()
+    assert len(members) == 1 and members[0]["role"] == "owner"
+
+def test_list_my_households(client):
+    h = _auth(client, "owner2@b.com")
+    client.post("/households", json={"name": "A"}, headers=h)
+    client.post("/households", json={"name": "B"}, headers=h)
+    r = client.get("/households", headers=h)
+    assert r.status_code == 200 and len(r.json()) == 2
