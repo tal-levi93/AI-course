@@ -4,6 +4,15 @@ on:
   pull_request:
     branches: [develop, release, production]
 
+# Cancel superseded runs on the same PR to save runner minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the workflow only reads the checked-out code.
+permissions:
+  contents: read
+
 jobs:
   backend-tests:
     name: Backend tests
@@ -37,6 +46,10 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  # NOTE: lint and build run ONLY on PRs into `production`
+  # (via `if: github.base_ref == 'production'`). On develop/release PRs they
+  # report as "skipped", NOT "passed" — so do not mark them as required status
+  # checks on those branches, or merges there would block forever.
   lint:
     name: Lint
     runs-on: ubuntu-latest
