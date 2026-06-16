@@ -43,11 +43,11 @@ test('owner sees a Remove button for members but not for the owner', async () =>
 })
 
 test('clicking Remove deletes the member and refreshes the list', async () => {
-  const apiSpy = vi.spyOn(client, 'api').mockImplementation(async (path, opts) => {
+  const apiSpy = vi.spyOn(client, 'api').mockImplementation(async (path) => {
     if (path === '/households/7') return { id: 7, name: 'Home', owner_id: 1 }
     if (path === '/households/7/members') {
       // first load returns both; after delete, only the owner remains
-      return apiSpy.mock.calls.some(([p, o]) => o?.method === 'DELETE')
+      return apiSpy.mock.calls.some(([, o]) => o?.method === 'DELETE')
         ? [{ user_id: 1, display_name: 'Olive', email: 'o@x.com', role: 'owner' }]
         : [
             { user_id: 1, display_name: 'Olive', email: 'o@x.com', role: 'owner' },
