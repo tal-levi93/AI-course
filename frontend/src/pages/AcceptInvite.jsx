@@ -21,6 +21,7 @@ export default function AcceptInvite() {
     let active = true
 
     if (!getToken()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- route decision on mount
       setStatus('needauth')
       return
     }

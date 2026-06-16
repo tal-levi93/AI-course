@@ -24,6 +24,7 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch data on mount
     load()
   }, [])
 
