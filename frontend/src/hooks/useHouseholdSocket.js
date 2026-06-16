@@ -8,7 +8,9 @@ const WS_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replac
 
 export function useHouseholdSocket(householdId, onEvent) {
   const cbRef = useRef(onEvent)
-  cbRef.current = onEvent
+  useEffect(() => {
+    cbRef.current = onEvent
+  })
 
   useEffect(() => {
     if (!Number.isInteger(householdId) || householdId <= 0) return
